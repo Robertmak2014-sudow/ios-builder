@@ -1,0 +1,36 @@
+name: Build iOS IPA (No Signing)
+
+on: [workflow_dispatch, push]
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.0'
+        
+    - name: Make build script executable
+      run: chmod +x build.sh
+      
+    - name: Build IPA without signing
+      run: ./build.sh
+      
+    - name: Upload IPA artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ClickerApp-IPA-Unsigned
+        path: ClickerApp.ipa
+        retention-days: 7
+        
+    - name: Show IPA info
+      run: |
+        echo "📦 Информация о IPA:"
+        unzip -l ClickerApp.ipa | head -20
+        echo ""
+        echo "🏗️ Размер IPA: $(du -h ClickerApp.ipa | cut -f1)"
