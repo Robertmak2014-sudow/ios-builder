@@ -2,27 +2,24 @@
 import PackageDescription
 
 let package = Package(
-    name: "ClickerGame",
-    platforms: [
-        .iOS(.v15),
-        .macOS(.v12)
-    ],
+    name: "ClickerApp",
+    platforms: [.iOS(.v15)],
     products: [
-        .library(
-            name: "ClickerGame",
-            targets: ["ClickerGame"]),
+        .executable(name: "ClickerApp", targets: ["ClickerApp"])
     ],
-    dependencies: [],
     targets: [
-        .target(
-            name: "ClickerGame",
+        .executableTarget(
+            name: "ClickerApp",
             dependencies: [],
-            path: "Sources"
-        ),
-        .testTarget(
-            name: "ClickerGameTests",
-            dependencies: ["ClickerGame"],
-            path: "Tests"
-        ),
+            path: ".",
+            sources: ["ClickerApp.swift"],
+            resources: [
+                .copy("Resources/Info.plist"),
+                .copy("Resources/LaunchScreen.storyboard")
+            ],
+            swiftSettings: [
+                .define("IOS_APP")
+            ]
+        )
     ]
 )
