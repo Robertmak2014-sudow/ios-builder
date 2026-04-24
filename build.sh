@@ -2,22 +2,22 @@
 
 set -e  # Останавливаться при ошибках
 
-echo "🚀 Начинаем сборку iOS IPA без подписи..."
+echo "🚀 Starting iOS IPA build without signing..."
 
-# Получаем информацию о SDK
+# Get SDK info
 SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
 echo "📱 iOS SDK path: $SDK_PATH"
 
-# Очищаем предыдущие сборки
+# Clean previous builds
 rm -rf Payload
 rm -f ClickerApp
 rm -f ClickerApp.ipa
 
-# Создаем структуру папок
+# Create folder structure
 mkdir -p Payload/ClickerApp.app
 
-echo "🔨 Компилируем Swift код..."
-# Компилируем Swift код с правильным таргетом
+echo "🔨 Compiling Swift code..."
+# Compile Swift code
 xcrun swiftc ClickerApp.swift \
   -sdk "$SDK_PATH" \
   -target arm64-apple-ios17.0 \
@@ -28,34 +28,28 @@ xcrun swiftc ClickerApp.swift \
   -I "$SDK_PATH/usr/include" \
   -Xlinker -dead_strip
 
-# Проверяем что бинарник создан
+# Check if binary was created
 if [ ! -f "ClickerApp" ]; then
-    echo "❌ Ошибка: бинарник не создан"
+    echo "❌ Error: binary not created"
     exit 1
 fi
 
-echo "✅ Бинарник успешно скомпилирован"
-ls -la ClickerApp
-
-echo "📦 Копируем бинарник..."
+echo "✅ Binary compiled successfully"
+echo "📦 Copying binary..."
 cp ClickerApp Payload/ClickerApp.app/
 chmod +x Payload/ClickerApp.app/ClickerApp
 
-echo "📝 Создаем Info.plist..."
+echo "📝 Creating valid Info.plist..."
 cat > Payload/ClickerApp.app/Info.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
+<plist version极1.0">
 <dict>
-    <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
     <key>CFBundleExecutable</key>
     <string>ClickerApp</string>
     <key>CFBundleIdentifier</key>
-    <string>com.example.ClickerApp</string>
-    <key>CFBundleInfo极ctionaryVersion</key>
-    <string>6.0</string>
-    <key>CFBundleName</极>
+    <string>com.yourcompany.ClickerApp</string>
+    <key>CFBundleName</key>
     <string>ClickerApp</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
@@ -63,47 +57,42 @@ cat > Payload/ClickerApp.app/Info.plist << 'EOF'
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
-    <key>LSRequiresIPhoneOS</key>
-    <true/>
-    <key>UIRequiredDeviceCapabilities</key>
-    <array>
-        <string>armv7</string>
-    </array>
-    <key>UISupportedInterfaceOrientations</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-    </array>
     <key>MinimumOSVersion</key>
-    <string>17.0</string>
+    <string>11.0</string>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
+    </dict>
 </dict>
 </plist>
 EOF
 
-echo "🖼️ Создаем PkgInfo..."
+echo "🖼️ Creating PkgInfo..."
 echo "APPL????" > Payload/ClickerApp.app/PkgInfo
 
-echo "📦 Создаем IPA..."
+echo "📦 Creating IPA..."
 cd Payload
-echo "Содержимое папки перед созданием IPA:"
+echo "Folder contents before creating IPA:"
 ls -la ClickerApp.app/
 zip -qr ../ClickerApp.ipa .
 cd ..
 
-echo "✅ Проверяем IPA..."
+echo "✅ Checking IPA..."
 if [ ! -f "ClickerApp.ipa" ]; then
-    echo "❌ Ошибка: IPA не создан"
+    echo "❌ Error: IPA not created"
     exit 1
 fi
 
 IPA_SIZE=$(du -h ClickerApp.ipa | cut -f1)
-echo "📊 Размер IPA: $IPA_SIZE"
+echo "📊 IPA size: $IPA_SIZE"
 
-echo "📁 Содержимое IPA:"
+echo "📁 IPA contents:"
 unzip -l ClickerApp.ipa
 
-# Очистка
+# Cleanup
 rm -rf Payload
 rm -f ClickerApp
 
-echo "🎉 Сборка завершена успешно!"
-echo "📦 Файл: ClickerApp.ipa ($IPA_SIZE)"
+echo "🎉 Build completed successfully!"
+echo "📦 File: ClickerApp.ipa ($IPA_SIZE)"
