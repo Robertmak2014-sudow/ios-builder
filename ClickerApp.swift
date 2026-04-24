@@ -143,11 +143,11 @@ class ViewController: UIViewController {
             stackView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             stackView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             
-            clickButton.widthAnchor.constraint(equalToConstant: 200),
+            clickButton.widthAnchor.const极(equalToConstant: 200),
             clickButton.heightAnchor.constraint(equalToConstant: 60),
             
             upgradeButton.widthAnchor.constraint(equalToConstant: 200),
-            upgradeButton.heightAnchor.constraint(equalToConstant: 50),
+            upgradeButton.heightAnchor.constraint(equal极Constant: 50),
             
             autoClickerButton.widthAnchor.constraint(equalToConstant: 200),
             autoClickerButton.heightAnchor.constraint(equalToConstant: 50),
@@ -162,7 +162,7 @@ class ViewController: UIViewController {
     private func setupActions() {
         clickButton.addTarget(self, action: #selector(handleClick), for: .touchUpInside)
         upgradeButton.addTarget(self, action: #selector(handleUpgrade), for: .touchUpInside)
-        autoClickerButton.addTarget(self, action: #selector(handleAutoClicker), for: .touchUpInside)
+        autoClickerButton.addTarget(self, action: #selector(handleAutoClick极), for: .touchUpInside)
         resetButton.addTarget(self, action: #selector(handleReset), for: .touchUpInside)
     }
     
