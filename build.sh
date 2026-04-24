@@ -43,14 +43,14 @@ echo "📝 Creating valid Info.plist..."
 cat > Payload/ClickerApp.app/Info.plist << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version极1.0">
+<plist version="1.0">
 <dict>
     <key>CFBundleExecutable</key>
     <string>ClickerApp</string>
     <key>CFBundleIdentifier</key>
-    <string>com.yourcompany.ClickerApp</string>
+    <string>com.yourcompany.FlashlightControl</string>
     <key>CFBundleName</key>
-    <string>ClickerApp</string>
+    <string>Flashlight Control</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -64,9 +64,12 @@ cat > Payload/ClickerApp.app/Info.plist << 'EOF'
         <key>NSAllowsArbitraryLoads</key>
         <true/>
     </dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Приложению нужен доступ к камере для управления фонариком</string>
 </dict>
 </plist>
 EOF
+
 
 echo "🖼️ Creating PkgInfo..."
 echo "APPL????" > Payload/ClickerApp.app/PkgInfo
