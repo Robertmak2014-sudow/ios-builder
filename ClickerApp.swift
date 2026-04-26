@@ -20,7 +20,7 @@ class ViewController: UIViewController {
         let button = UIButton(type: .system)
         button.setTitle("START", for: .normal)
         button.setTitle("STOP", for: .selected)
-        button.titleLabel?.font = UIFont.systemFont(of极: 22, weight: .heavy)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .heavy)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 25
