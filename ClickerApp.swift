@@ -8,9 +8,9 @@ class ViewController: UIViewController {
     
     private let statusLabel: UILabel = {
         let label = UILabel()
-        label.text = "Ожидание запуска..."
+        label.text = "Ojidanie zapuska..."
         label.font = UIFont.systemFont(ofSize: 24, weight: .bold)
-        label.textAlignment极.center
+        label.textAlignment = .center
         label.textColor = .white
         label.numberOfLines = 0
         return label
@@ -18,19 +18,19 @@ class ViewController: UIViewController {
     
     private let toggleButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("▶️ СТАРТ", for: .normal)
-        button.setTitle("⏹️ СТОП", for: .selected)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .heavy)
+        button.setTitle("START", for: .normal)
+        button.setTitle("STOP", for: .selected)
+        button.titleLabel?.font = UIFont.systemFont(of极: 22, weight: .heavy)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 25
         return button
     }()
     
-    private let voiceButton: UI极ton = {
+    private let voiceButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("🔊 Голос: ВКЛ", for: .normal)
-        button.setTitle("🔇 Голос: ВЫКЛ", for: .selected)
+        button.setTitle("GOLOS VKL", for: .normal)
+        button.setTitle("GOLOS VIKL", for: .selected)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
@@ -49,7 +49,7 @@ class ViewController: UIViewController {
         
         statusLabel.frame = CGRect(x: 20, y: 100, width: view.bounds.width - 40, height: 120)
         toggleButton.frame = CGRect(x: 50, y: view.bounds.height - 150, width: view.bounds.width - 100, height: 60)
-        voiceButton.frame = CGRect(x: 50,极y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
+        voiceButton.frame = CGRect(x: 50, y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
         
         view.addSubview(statusLabel)
         view.addSubview(toggleButton)
@@ -65,10 +65,10 @@ class ViewController: UIViewController {
         voiceButton.isSelected = !voiceButton.isSelected
         if voiceButton.isSelected {
             voiceButton.backgroundColor = .systemGray
-            speak("Голос выключен")
+            speak("Golos vykluchen")
         } else {
             voiceButton.backgroundColor = .systemBlue
-            speak("Голос включен")
+            speak("Golos vkluchen")
         }
     }
     
@@ -77,14 +77,14 @@ class ViewController: UIViewController {
             stopMonitoring()
             toggleButton.isSelected = false
             toggleButton.backgroundColor = .systemGreen
-            statusLabel.text = "Мониторинг остановлен"
-            speak("Мониторинг остановлен")
+            statusLabel.text = "Monitoring ostanovlen"
+            speak("Monitoring ostanovlen")
         } else {
             startMonitoring()
             toggleButton.isSelected = true
             toggleButton.backgroundColor = .systemRed
-            statusLabel.text = "Мониторинг запущен"
-            speak("Мониторинг запущен")
+            statusLabel.text = "Monitoring zapuschen"
+            speak("Monitoring zapuschen")
         }
     }
     
@@ -104,22 +104,21 @@ class ViewController: UIViewController {
     
     private func fetchApiData() {
         guard let url = URL(string: apiUrl) else {
-            statusLabel.text = "Ошибка: неверный URL"
+            statusLabel.text = "Oshibka URL"
             return
         }
         
-        // Исправлено: dataTask вместо data极
         let task = URLSession.shared.dataTask(with: url) { [weak self] (data, response, error) in
             DispatchQueue.main.async {
                 if let error = error {
-                    self?.statusLabel.text = "Ошибка сети: \(error.localizedDescription)"
-                    self?.speak("Ошибка сети")
+                    self?.statusLabel.text = "Oshibka seti"
+                    self?.speak("Oshibka seti")
                     return
                 }
                 
                 guard let data = data else {
-                    self?.statusLabel.text = "Нет данных от сервера"
-                    self?.speak("Нет данных")
+                    self?.statusLabel.text = "Net dannyh"
+                    self?.speak("Net dannyh")
                     return
                 }
                 
@@ -127,8 +126,8 @@ class ViewController: UIViewController {
                     let cleanedText = responseText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                     self?.handleApiResponse(cleanedText)
                 } else {
-                    self?.statusLabel.text = "Не могу прочитать ответ"
-                    self?.speak("Ошибка чтения")
+                    self?.statusLabel.text = "Oshibka chteniya"
+                    self?.speak("Oshibka chteniya")
                 }
             }
         }
@@ -137,24 +136,22 @@ class ViewController: UIViewController {
     }
     
     private func handleApiResponse(_ response: String) {
-        let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
-        
         if response == "on" {
-            statusLabel.text = "\(timestamp): ON\nВключаю фонарик"
+            statusLabel.text = "ON - Vklyuchayu fonarik"
             toggleFlashlight(on: true)
             if !voiceButton.isSelected {
-                speak("Включаю фонарик")
+                speak("Vklyuchayu fonarik")
             }
         } else if response == "off" {
-            statusLabel.text = "\(timestamp): OFF\nВыключаю фонарик"
+            statusLabel.text = "OFF - Vyklyuchayu fonarik"
             toggleFlashlight(on: false)
             if !voiceButton.isSelected {
-                speak("Выключаю фонарик")
+                speak("Vyklyuchayu fonarik")
             }
         } else {
-            statusLabel.text = "\(timestamp): Ответ: '\(response)'"
+            statusLabel.text = "Otvet: \(response)"
             if !voiceButton.isSelected {
-                speak("Получен ответ: \(response)")
+                speak("Poluchen otvet")
             }
         }
     }
@@ -168,7 +165,7 @@ class ViewController: UIViewController {
             try device.lockForConfiguration()
             
             if on {
-                try device.setTorchMode极(level: 1.0)
+                try device.setTorchModeOn(level: 1.0)
             } else {
                 device.torchMode = .off
             }
