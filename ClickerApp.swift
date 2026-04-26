@@ -8,7 +8,7 @@ class ViewController: UIViewController {
     
     private let statusLabel: UILabel = {
         let label = UILabel()
-        label.text = "Ojidanie zapuska..."
+        label.text = "Нажмите СТАРТ"
         label.font = UIFont.systemFont(ofSize: 24, weight: .bold)
         label.textAlignment = .center
         label.textColor = .white
@@ -18,8 +18,8 @@ class ViewController: UIViewController {
     
     private let toggleButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("START", for: .normal)
-        button.setTitle("STOP", for: .selected)
+        button.setTitle("СТАРТ", for: .normal)
+        button.setTitle("СТОП", for: .selected)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .heavy)
         button.backgroundColor = .systemGreen
         button.setTitleColor(.white, for: .normal)
@@ -29,8 +29,8 @@ class ViewController: UIViewController {
     
     private let voiceButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("GOLOS VKL", for: .normal)
-        button.setTitle("GOLOS VIKL", for: .selected)
+        button.setTitle("🔊 Голос ВКЛ", for: .normal)
+        button.setTitle("🔇 Голос ВЫКЛ", for: .selected)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
         button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
@@ -49,7 +49,7 @@ class ViewController: UIViewController {
         
         statusLabel.frame = CGRect(x: 20, y: 100, width: view.bounds.width - 40, height: 120)
         toggleButton.frame = CGRect(x: 50, y: view.bounds.height - 150, width: view.bounds.width - 100, height: 60)
-        voiceButton.frame = CGRect(x: 50, y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
+        voiceButton.frame = CGRect(x: 50, y: view.bounds.height - 220, width: view.bounds.width - 100,极ght: 40)
         
         view.addSubview(statusLabel)
         view.addSubview(toggleButton)
@@ -65,10 +65,10 @@ class ViewController: UIViewController {
         voiceButton.isSelected = !voiceButton.isSelected
         if voiceButton.isSelected {
             voiceButton.backgroundColor = .systemGray
-            speak("Golos vykluchen")
+            speak("Голос выключен")
         } else {
             voiceButton.backgroundColor = .systemBlue
-            speak("Golos vkluchen")
+            speak("Голос включен")
         }
     }
     
@@ -77,14 +77,14 @@ class ViewController: UIViewController {
             stopMonitoring()
             toggleButton.isSelected = false
             toggleButton.backgroundColor = .systemGreen
-            statusLabel.text = "Monitoring ostanovlen"
-            speak("Monitoring ostanovlen")
+            statusLabel.text = "Мониторинг остановлен"
+            speak("Мониторинг остановлен")
         } else {
             startMonitoring()
             toggleButton.isSelected = true
             toggleButton.backgroundColor = .systemRed
-            statusLabel.text = "Monitoring zapuschen"
-            speak("Monitoring zapuschen")
+            statusLabel.text = "Мониторинг запущен"
+            speak("Мониторинг запущен")
         }
     }
     
@@ -104,21 +104,21 @@ class ViewController: UIViewController {
     
     private func fetchApiData() {
         guard let url = URL(string: apiUrl) else {
-            statusLabel.text = "Oshibka URL"
+            statusLabel.text = "Ошибка URL"
             return
         }
         
         let task = URLSession.shared.dataTask(with: url) { [weak self] (data, response, error) in
             DispatchQueue.main.async {
-                if let error = error {
-                    self?.statusLabel.text = "Oshibka seti"
-                    self?.speak("Oshibka seti")
+                if error != nil {
+                    self?.statusLabel.text = "Ошибка сети"
+                    self?.speak("Ошибка сети")
                     return
                 }
                 
                 guard let data = data else {
-                    self?.statusLabel.text = "Net dannyh"
-                    self?.speak("Net dannyh")
+                    self?.statusLabel.text = "Нет данных"
+                    self?.speak("Нет данных")
                     return
                 }
                 
@@ -126,8 +126,8 @@ class ViewController: UIViewController {
                     let cleanedText = responseText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                     self?.handleApiResponse(cleanedText)
                 } else {
-                    self?.statusLabel.text = "Oshibka chteniya"
-                    self?.speak("Oshibka chteniya")
+                    self?.statusLabel.text = "Ошибка чтения"
+                    self?.speak("Ошибка чтения")
                 }
             }
         }
@@ -137,21 +137,21 @@ class ViewController: UIViewController {
     
     private func handleApiResponse(_ response: String) {
         if response == "on" {
-            statusLabel.text = "ON - Vklyuchayu fonarik"
+            statusLabel.text = "ON - Включаю фонарик"
             toggleFlashlight(on: true)
             if !voiceButton.isSelected {
-                speak("Vklyuchayu fonarik")
+                speak("Включаю фонарик")
             }
         } else if response == "off" {
-            statusLabel.text = "OFF - Vyklyuchayu fonarik"
+            statusLabel.text = "OFF - Выключаю фонарик"
             toggleFlashlight(on: false)
             if !voiceButton.isSelected {
-                speak("Vyklyuchayu fonarik")
+                speak("Выключаю фонарик")
             }
         } else {
-            statusLabel.text = "Otvet: \(response)"
+            statusLabel.text = "Ответ: \(response)"
             if !voiceButton.isSelected {
-                speak("Poluchen otvet")
+                speak("Получен ответ")
             }
         }
     }
@@ -172,7 +172,7 @@ class ViewController: UIViewController {
             
             device.unlockForConfiguration()
         } catch {
-            print("Flashlight error")
+            print("Ошибка фонарика")
         }
     }
     
@@ -203,7 +203,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         window?.backgroundColor = .black
         
         let viewController = ViewController()
-        window?.rootViewController = viewController
+        window?.极ViewController = viewController
         window?.makeKeyAndVisible()
         
         return true
