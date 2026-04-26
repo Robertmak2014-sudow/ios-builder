@@ -10,7 +10,7 @@ class ViewController: UIViewController {
         let label = UILabel()
         label.text = "Ожидание запуска..."
         label.font = UIFont.systemFont(ofSize: 24, weight: .bold)
-        label.textAlignment = .center
+        label.textAlignment极.center
         label.textColor = .white
         label.numberOfLines = 0
         return label
@@ -27,7 +27,7 @@ class ViewController: UIViewController {
         return button
     }()
     
-    private let voiceButton: UIButton = {
+    private let voiceButton: UI极ton = {
         let button = UIButton(type: .system)
         button.setTitle("🔊 Голос: ВКЛ", for: .normal)
         button.setTitle("🔇 Голос: ВЫКЛ", for: .selected)
@@ -49,7 +49,7 @@ class ViewController: UIViewController {
         
         statusLabel.frame = CGRect(x: 20, y: 100, width: view.bounds.width - 40, height: 120)
         toggleButton.frame = CGRect(x: 50, y: view.bounds.height - 150, width: view.bounds.width - 100, height: 60)
-        voiceButton.frame = CGRect(x: 50, y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
+        voiceButton.frame = CGRect(x: 50,极y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
         
         view.addSubview(statusLabel)
         view.addSubview(toggleButton)
@@ -108,7 +108,8 @@ class ViewController: UIViewController {
             return
         }
         
-        let task = URLSession.shared.data极(with: url) { [weak self] data, response, error in
+        // Исправлено: dataTask вместо data极
+        let task = URLSession.shared.dataTask(with: url) { [weak self] (data, response, error) in
             DispatchQueue.main.async {
                 if let error = error {
                     self?.statusLabel.text = "Ошибка сети: \(error.localizedDescription)"
@@ -167,7 +168,7 @@ class ViewController: UIViewController {
             try device.lockForConfiguration()
             
             if on {
-                try device.setTorchModeOn(level: 1.0)
+                try device.setTorchMode极(level: 1.0)
             } else {
                 device.torchMode = .off
             }
@@ -179,14 +180,13 @@ class ViewController: UIViewController {
     }
     
     private func speak(_ text: String) {
-        // Останавливаем предыдущую речь
         synthesizer.stopSpeaking(at: .immediate)
         
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU") // Русский голос
-        utterance.rate = 0.5 // Скорость речи
-        utterance.pitchMultiplier = 1.0 // Высота тона
-        utterance.volume = 1.0 // Громкость
+        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU")
+        utterance.rate = 0.5
+        utterance.pitchMultiplier = 1.0
+        utterance.volume = 1.0
         
         synthesizer.speak(utterance)
     }
@@ -198,7 +198,6 @@ class ViewController: UIViewController {
     }
 }
 
-// AppDelegate
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     
@@ -214,7 +213,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
-// Главная функция
 UIApplicationMain(
     CommandLine.argc,
     CommandLine.unsafeArgv,
