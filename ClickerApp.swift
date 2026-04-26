@@ -50,7 +50,7 @@ class ViewController: UIViewController {
             self.speak("Мониторинг остановлен")
         } else {
             startMonitoring()
-            toggle极ton.isSelected = true
+            toggleButton.isSelected = true
             toggleButton.backgroundColor = .systemRed
             statusLabel.text = "Мониторинг запущен"
             self.speak("Мониторинг запущен")
