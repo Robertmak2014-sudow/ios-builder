@@ -4,6 +4,7 @@ import AVFoundation
 class ViewController: UIViewController {
     private let apiUrl = "https://jetong.ru/rele/api.php"
     private var timer: Timer?
+    private let synthesizer = AVSpeechSynthesizer()
     
     private let statusLabel: UILabel = {
         let label = UILabel()
@@ -25,10 +26,20 @@ class ViewController: UIViewController {
         button.layer.cornerRadius = 25
         return button
     }()
+    
+    private let voiceButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.setTitle("🔊 Голос: ВКЛ", for: .normal)
+        button.setTitle("🔇 Голос: ВЫКЛ", for: .selected)
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        button.backgroundColor = .systemBlue
+        button.setTitleColor(.white, for: .normal)
+        button.layer.cornerRadius = 15
+        return button
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        print("View did load")
         setupUI()
         setupActions()
     }
@@ -36,20 +47,29 @@ class ViewController: UIViewController {
     private func setupUI() {
         view.backgroundColor = .black
         
-        // Явно задаем frame для всех элементов
         statusLabel.frame = CGRect(x: 20, y: 100, width: view.bounds.width - 40, height: 120)
         toggleButton.frame = CGRect(x: 50, y: view.bounds.height - 150, width: view.bounds.width - 100, height: 60)
+        voiceButton.frame = CGRect(x: 50, y: view.bounds.height - 220, width: view.bounds.width - 100, height: 40)
         
-        // Добавляем на view
         view.addSubview(statusLabel)
         view.addSubview(toggleButton)
-        
-        print("UI setup completed")
+        view.addSubview(voiceButton)
     }
     
     private func setupActions() {
         toggleButton.addTarget(self, action: #selector(toggleMonitoring), for: .touchUpInside)
-        print("Actions setup completed")
+        voiceButton.addTarget(self, action: #selector(toggleVoice), for: .touchUpInside)
+    }
+    
+    @objc private func toggleVoice() {
+        voiceButton.isSelected = !voiceButton.isSelected
+        if voiceButton.isSelected {
+            voiceButton.backgroundColor = .systemGray
+            speak("Голос выключен")
+        } else {
+            voiceButton.backgroundColor = .systemBlue
+            speak("Голос включен")
+        }
     }
     
     @objc private func toggleMonitoring() {
@@ -58,16 +78,17 @@ class ViewController: UIViewController {
             toggleButton.isSelected = false
             toggleButton.backgroundColor = .systemGreen
             statusLabel.text = "Мониторинг остановлен"
+            speak("Мониторинг остановлен")
         } else {
             startMonitoring()
             toggleButton.isSelected = true
             toggleButton.backgroundColor = .systemRed
-            statusLabel.text = "Мониторинг запущен\nОпрос каждые 3 секунды"
+            statusLabel.text = "Мониторинг запущен"
+            speak("Мониторинг запущен")
         }
     }
     
     private func startMonitoring() {
-        print("Starting monitoring")
         fetchApiData()
         
         timer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
@@ -76,29 +97,28 @@ class ViewController: UIViewController {
     }
     
     private func stopMonitoring() {
-        print("Stopping monitoring")
         timer?.invalidate()
         timer = nil
         toggleFlashlight(on: false)
     }
     
     private func fetchApiData() {
-        print("Fetching API data")
-        
         guard let url = URL(string: apiUrl) else {
             statusLabel.text = "Ошибка: неверный URL"
             return
         }
         
-        let task = URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
+        let task = URLSession.shared.data极(with: url) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 if let error = error {
                     self?.statusLabel.text = "Ошибка сети: \(error.localizedDescription)"
+                    self?.speak("Ошибка сети")
                     return
                 }
                 
                 guard let data = data else {
                     self?.statusLabel.text = "Нет данных от сервера"
+                    self?.speak("Нет данных")
                     return
                 }
                 
@@ -107,6 +127,7 @@ class ViewController: UIViewController {
                     self?.handleApiResponse(cleanedText)
                 } else {
                     self?.statusLabel.text = "Не могу прочитать ответ"
+                    self?.speak("Ошибка чтения")
                 }
             }
         }
@@ -120,17 +141,25 @@ class ViewController: UIViewController {
         if response == "on" {
             statusLabel.text = "\(timestamp): ON\nВключаю фонарик"
             toggleFlashlight(on: true)
+            if !voiceButton.isSelected {
+                speak("Включаю фонарик")
+            }
         } else if response == "off" {
             statusLabel.text = "\(timestamp): OFF\nВыключаю фонарик"
             toggleFlashlight(on: false)
+            if !voiceButton.isSelected {
+                speak("Выключаю фонарик")
+            }
         } else {
             statusLabel.text = "\(timestamp): Ответ: '\(response)'"
+            if !voiceButton.isSelected {
+                speak("Получен ответ: \(response)")
+            }
         }
     }
     
     private func toggleFlashlight(on: Bool) {
         guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else {
-            print("Flashlight not available")
             return
         }
         
@@ -139,21 +168,33 @@ class ViewController: UIViewController {
             
             if on {
                 try device.setTorchModeOn(level: 1.0)
-                print("Flashlight ON")
             } else {
                 device.torchMode = .off
-                print("Flashlight OFF")
             }
             
             device.unlockForConfiguration()
         } catch {
-            print("Flashlight error: \(error)")
+            print("Flashlight error")
         }
+    }
+    
+    private func speak(_ text: String) {
+        // Останавливаем предыдущую речь
+        synthesizer.stopSpeaking(at: .immediate)
+        
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU") // Русский голос
+        utterance.rate = 0.5 // Скорость речи
+        utterance.pitchMultiplier = 1.0 // Высота тона
+        utterance.volume = 1.0 // Громкость
+        
+        synthesizer.speak(utterance)
     }
     
     deinit {
         timer?.invalidate()
         toggleFlashlight(on: false)
+        synthesizer.stopSpeaking(at: .immediate)
     }
 }
 
@@ -162,8 +203,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        print("App launching")
-        
         window = UIWindow(frame: UIScreen.main.bounds)
         window?.backgroundColor = .black
         
