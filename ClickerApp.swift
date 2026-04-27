@@ -108,11 +108,11 @@ class ViewController: UIViewController {
         if response == "on" {
             statusLabel.text = "ВКЛ - Включаю фонарик"
             toggleFlashlight(on: true)
-            self.speak("Включаю фонарик")
+            self.speak("ФОНАРИК ВКЛЮЧЕН СИКС СЕВЕН ОТКЛЮЧЕН БРРР БРРР ПАТАПИМ")
         } else if response == "off" {
             statusLabel.text = "ВЫКЛ - Выключаю фонарик"
             toggleFlashlight(on: false)
-            self.speak("Выключаю фонарик")
+            self.speak("ФОНАРИК ВЫКЛЮЧЕН СИКС ВЕН ВКЛЮЧЕН БРРРРРРР БРРРРР ПАТОПИМА")
         } else {
             statusLabel.text = "Ответ: \(response)"
             self.speak("Получен ответ")
