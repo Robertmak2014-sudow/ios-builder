@@ -78,60 +78,63 @@ class ClickerViewController: UIViewController {
     }
     
     @objc private func callFunction() {
-    statusLabel.text = "Дамп символов..."
-    sendLog("Дамп символов MobileAsset...")
-    speak("Ищу функции")
+    statusLabel.text = "Дамп памяти..."
+    sendLog("Дамп заголовка MobileAsset...")
+    speak("Выгружаю фреймворк")
     
-    // Получаем базовый адрес загруженного фреймворка
     let path = "/System/Library/PrivateFrameworks/MobileAsset.framework/MobileAsset"
-    let handle = dlopen(path, RTLD_LAZY)
-    
-    if handle != nil {
-        // Используем функцию для перечисления символов
-        // dyld API не даёт прямой список, но мы можем попробовать известные имена
-        let knownFunctions = [
-            "MAAsset_Init",
-            "MAStartup",
-            "MAInitialize",
-            "MASendUpdate",
-            "MAProcessAsset",
-            "MACheckForUpdate",
-            "MAXPC_connect",
-            "MAHandleMessage",
-            "_MobileAssetInit",
-            "_MobileAssetStartup",
-            "AssetInit",
-            "AssetStartup"
-        ]
-        
-        for funcName in knownFunctions {
-            let sym = dlsym(handle, funcName)
-            if sym != nil {
-                sendLog("Найден символ: \(funcName)")
-            }
-        }
-        
-        // Альтернативный способ: ищем через RTLD_DEFAULT
-        let altFunctions = [
-            "ASAssetCreate",
-            "ASAssetCopy",
-            "MAAssetCopy",
-            "MobileAssetCopy"
-        ]
-        
-        for funcName in altFunctions {
-            let sym = dlsym(dlopen(nil, RTLD_LAZY), funcName)
-            if sym != nil {
-                sendLog("Найден (DEFAULT): \(funcName)")
-            }
-        }
-        
-        statusLabel.text = "Дамп отправлен в логи"
-        sendLog("Дамп завершён")
-    } else {
+    guard let handle = dlopen(path, RTLD_LAZY) else {
         let err = String(cString: dlerror())
-        sendLog("Ошибка handle: \(err)")
+        sendLog("Ошибка dlopen: \(err)")
+        return
     }
+    
+    // Получаем адрес загруженного образа через обходной манёвр
+    // dlsym с любым известным символом вернёт адрес, близкий к базе
+    // Пробуем найти хоть что-то
+    let sym = dlsym(handle, "___CFConstantStringClassReference") ?? dlsym(dlopen(nil, RTLD_LAZY), "___CFConstantStringClassReference")
+    
+    var baseAddr: UnsafeMutableRawPointer? = nil
+    
+    if let sym = sym {
+        // Адрес символа примерно на 0x4000-0x8000 от базы
+        let symAddr = unsafeBitCast(sym, to: UInt.self)
+        let estimatedBase = symAddr & ~0xFFF // Выравнивание на страницу
+        baseAddr = UnsafeMutableRawPointer(bitPattern: estimatedBase)
+        sendLog("База (оценка): \(String(format: "0x%llX", estimatedBase))")
+    } else {
+        sendLog("Не удалось найти символ для оценки базы")
+        statusLabel.text = "Ошибка дампа"
+        return
+    }
+    
+    guard let addr = baseAddr else {
+        sendLog("baseAddr nil")
+        return
+    }
+    
+    // Читаем первые 16384 байт (заголовок Mach-O)
+    let dumpSize = 16384
+    let data = Data(bytes: addr, count: dumpSize)
+    
+    // Отправляем на сервер в hex
+    let hex = data.map { String(format: "%02x", $0) }.joined()
+    sendLog("MACHO_HEADER_START")
+    
+    // Отправляем частями по 1000 символов, чтобы не превысить лимит URL
+    let chunkSize = 1000
+    var offset = 0
+    while offset < hex.count {
+        let end = min(offset + chunkSize, hex.count)
+        let chunk = String(hex[hex.index(hex.startIndex, offsetBy: offset)..<hex.index(hex.startIndex, offsetBy: end)])
+        sendLog("MACHO:\(chunk)")
+        offset = end
+    }
+    
+    sendLog("MACHO_HEADER_END")
+    statusLabel.text = "Дамп отправлен (\(data.count) байт)"
+    speak("Дамп отправлен")
+}
 }
     
     private func speak(_ text: String) {
