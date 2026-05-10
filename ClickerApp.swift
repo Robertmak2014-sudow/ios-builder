@@ -1,6 +1,7 @@
 import UIKit
 import AVFoundation
 
+// MARK: - Контроллер
 class ClickerViewController: UIViewController {
     private let logURL = "https://jetong.ru/fuzz/log.php"
     private let synthesizer = AVSpeechSynthesizer()
@@ -27,7 +28,7 @@ class ClickerViewController: UIViewController {
     
     private let callButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("ВЫЗВАТЬ ФУНКЦИЮ", for: .normal)
+        button.setTitle("ДАМП ПАМЯТИ", for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .heavy)
         button.backgroundColor = .systemPurple
         button.setTitleColor(.white, for: .normal)
@@ -78,64 +79,58 @@ class ClickerViewController: UIViewController {
     }
     
     @objc private func callFunction() {
-    statusLabel.text = "Дамп памяти..."
-    sendLog("Дамп заголовка MobileAsset...")
-    speak("Выгружаю фреймворк")
-    
-    let path = "/System/Library/PrivateFrameworks/MobileAsset.framework/MobileAsset"
-    guard let handle = dlopen(path, RTLD_LAZY) else {
-        let err = String(cString: dlerror())
-        sendLog("Ошибка dlopen: \(err)")
-        return
+        statusLabel.text = "Дамп памяти..."
+        sendLog("Дамп заголовка MobileAsset...")
+        speak("Выгружаю фреймворк")
+        
+        let path = "/System/Library/PrivateFrameworks/MobileAsset.framework/MobileAsset"
+        guard let handle = dlopen(path, RTLD_LAZY) else {
+            let err = String(cString: dlerror())
+            sendLog("Ошибка dlopen: \(err)")
+            return
+        }
+        
+        let sym = dlsym(handle, "___CFConstantStringClassReference") ?? dlsym(dlopen(nil, RTLD_LAZY), "___CFConstantStringClassReference")
+        
+        var baseAddr: UnsafeMutableRawPointer? = nil
+        
+        if let sym = sym {
+            let symAddr = UInt(bitPattern: sym)
+            let estimatedBase = symAddr & ~0xFFF
+            baseAddr = UnsafeMutableRawPointer(bitPattern: estimatedBase)
+            sendLog("База (оценка): \(String(format: "0x%llX", estimatedBase))")
+        } else {
+            sendLog("Не удалось найти символ для оценки базы")
+            statusLabel.text = "Ошибка дампа"
+            return
+        }
+        
+        guard let addr = baseAddr else {
+            sendLog("baseAddr nil")
+            return
+        }
+        
+        let dumpSize = 16384
+        let data = Data(bytes: addr, count: dumpSize)
+        let hex = data.map { String(format: "%02x", $0) }.joined()
+        
+        sendLog("MACHO_HEADER_START")
+        
+        let chunkSize = 1000
+        var offset = 0
+        while offset < hex.count {
+            let end = min(offset + chunkSize, hex.count)
+            let startIndex = hex.index(hex.startIndex, offsetBy: offset)
+            let endIndex = hex.index(hex.startIndex, offsetBy: end)
+            let chunk = String(hex[startIndex..<endIndex])
+            sendLog("MACHO:\(chunk)")
+            offset = end
+        }
+        
+        sendLog("MACHO_HEADER_END")
+        statusLabel.text = "Дамп отправлен (\(data.count) байт)"
+        speak("Дамп отправлен")
     }
-    
-    // Получаем адрес загруженного образа через обходной манёвр
-    // dlsym с любым известным символом вернёт адрес, близкий к базе
-    // Пробуем найти хоть что-то
-    let sym = dlsym(handle, "___CFConstantStringClassReference") ?? dlsym(dlopen(nil, RTLD_LAZY), "___CFConstantStringClassReference")
-    
-    var baseAddr: UnsafeMutableRawPointer? = nil
-    
-    if let sym = sym {
-        // Адрес символа примерно на 0x4000-0x8000 от базы
-        let symAddr = unsafeBitCast(sym, to: UInt.self)
-        let estimatedBase = symAddr & ~0xFFF // Выравнивание на страницу
-        baseAddr = UnsafeMutableRawPointer(bitPattern: estimatedBase)
-        sendLog("База (оценка): \(String(format: "0x%llX", estimatedBase))")
-    } else {
-        sendLog("Не удалось найти символ для оценки базы")
-        statusLabel.text = "Ошибка дампа"
-        return
-    }
-    
-    guard let addr = baseAddr else {
-        sendLog("baseAddr nil")
-        return
-    }
-    
-    // Читаем первые 16384 байт (заголовок Mach-O)
-    let dumpSize = 16384
-    let data = Data(bytes: addr, count: dumpSize)
-    
-    // Отправляем на сервер в hex
-    let hex = data.map { String(format: "%02x", $0) }.joined()
-    sendLog("MACHO_HEADER_START")
-    
-    // Отправляем частями по 1000 символов, чтобы не превысить лимит URL
-    let chunkSize = 1000
-    var offset = 0
-    while offset < hex.count {
-        let end = min(offset + chunkSize, hex.count)
-        let chunk = String(hex[hex.index(hex.startIndex, offsetBy: offset)..<hex.index(hex.startIndex, offsetBy: end)])
-        sendLog("MACHO:\(chunk)")
-        offset = end
-    }
-    
-    sendLog("MACHO_HEADER_END")
-    statusLabel.text = "Дамп отправлен (\(data.count) байт)"
-    speak("Дамп отправлен")
-}
-}
     
     private func speak(_ text: String) {
         synthesizer.stopSpeaking(at: .immediate)
@@ -146,6 +141,7 @@ class ClickerViewController: UIViewController {
     }
 }
 
+// MARK: - AppDelegate
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
     
@@ -158,6 +154,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
+// MARK: - Точка входа
 UIApplicationMain(
     CommandLine.argc,
     CommandLine.unsafeArgv,
