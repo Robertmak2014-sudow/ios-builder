@@ -88,57 +88,37 @@ class ClickerViewController: UIViewController {
     }
     
     @objc private func callFunction() {
-        statusLabel.text = "Поиск базы..."
-        sendLog("Ищем базовый адрес MobileAsset...")
-        speak("Ищу библиотеку")
+        statusLabel.text = "Читаем /proc/self/maps..."
+        sendLog("Открываем /proc/self/maps...")
+        speak("Читаю карту памяти")
         
-        // Используем C-функции dyld из <mach-o/dyld.h>
-        let numImages = _dyld_image_count()
-        sendLog("Всего образов: \(numImages)")
-        
-        var found = false
-        for i in 0..<numImages {
-            let name = _dyld_get_image_name(i)
-            if name != nil {
-                let nameStr = String(cString: name!)
-                if nameStr.contains("MobileAsset") {
-                    let baseAddr = _dyld_get_image_vmaddr_slide(i)
-                    let header = _dyld_get_image_header(i)
-                    sendLog("Найден MobileAsset! Индекс: \(i)")
-                    sendLog("Имя: \(nameStr)")
-                    sendLog("VM Slide: \(String(format: "0x%llX", baseAddr))")
-                    sendLog("Header: \(String(format: "0x%llX", UInt(bitPattern: header)))")
-                    
-                    // Читаем заголовок Mach-O
-                    let dumpSize = 16384
-                    let data = Data(bytes: header!, count: dumpSize)
-                    let hex = data.map { String(format: "%02x", $0) }.joined()
-                    
-                    sendLog("MACHO_HEADER_START")
-                    let chunkSize = 1000
-                    var offset = 0
-                    while offset < hex.count {
-                        let end = min(offset + chunkSize, hex.count)
-                        let startIndex = hex.index(hex.startIndex, offsetBy: offset)
-                        let endIndex = hex.index(hex.startIndex, offsetBy: end)
-                        let chunk = String(hex[startIndex..<endIndex])
-                        sendLog("MACHO:\(chunk)")
-                        offset = end
+        // Читаем /proc/self/maps чтобы найти адрес MobileAsset
+        if let maps = try? String(contentsOfFile: "/proc/self/maps", encoding: .utf8) {
+            let lines = maps.components(separatedBy: "\n")
+            for line in lines {
+                if line.contains("MobileAsset") {
+                    sendLog("Найдена строка: \(line)")
+                    // Парсим адрес (первое поле, например: 100000000-100008000)
+                    let parts = line.components(separatedBy: " ")
+                    if let addrRange = parts.first {
+                        let addrs = addrRange.components(separatedBy: "-")
+                        if let startAddr = addrs.first {
+                            sendLog("Базовый адрес: \(startAddr)")
+                            statusLabel.text = "База: \(startAddr)"
+                            speak("Адрес найден")
+                            return
+                        }
                     }
-                    sendLog("MACHO_HEADER_END")
-                    
-                    statusLabel.text = "Дамп отправлен!"
-                    speak("Дамп успешно отправлен")
-                    found = true
-                    break
                 }
             }
-        }
-        
-        if !found {
-            sendLog("MobileAsset не найден в образах")
-            statusLabel.text = "Не найден"
+            sendLog("MobileAsset не найден в maps")
+            statusLabel.text = "Не найден в maps"
             speak("Ошибка")
+        } else {
+            // Если /proc/self/maps недоступен, пробуем через vmmap
+            sendLog("Не удалось прочитать /proc/self/maps")
+            statusLabel.text = "Нет доступа к maps"
+            speak("Нет доступа")
         }
     }
 }
