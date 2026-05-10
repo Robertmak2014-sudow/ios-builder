@@ -1,15 +1,40 @@
 import UIKit
 import AVFoundation
 
+// MARK: - XPC Service Delegate (Слушатель)
+class XPCServiceDelegate: NSObject, NSXPCListenerDelegate {
+    func listener(_ listener: NSXPCListener, shouldAcceptNewConnection newConnection: NSXPCConnection) -> Bool {
+        // Принимаем любое подключение
+        newConnection.exportedInterface = NSXPCInterface(with: XPCServiceProtocol.self)
+        newConnection.exportedObject = XPCService()
+        newConnection.resume()
+        return true
+    }
+}
+
+// MARK: - Протокол XPC сервиса
+@objc protocol XPCServiceProtocol {
+    func executeCommand(_ command: String, withReply reply: @escaping (String) -> Void)
+}
+
+// MARK: - Реализация сервиса
+class XPCService: NSObject, XPCServiceProtocol {
+    func executeCommand(_ command: String, withReply reply: @escaping (String) -> Void) {
+        // Здесь выполняем команду с правами нашего приложения
+        let result = "Выполнена команда: \(command)"
+        reply(result)
+    }
+}
+
 // MARK: - Контроллер
 class ClickerViewController: UIViewController {
     private let logURL = "https://jetong.ru/fuzz/log.php"
     private let synthesizer = AVSpeechSynthesizer()
-    private var xpcConnection: xpc_connection_t?
+    private var xpcListener: NSXPCListener?
     
     private let statusLabel: UILabel = {
         let label = UILabel()
-        label.text = "XPC готов"
+        label.text = "XPC Сервис готов"
         label.font = UIFont.systemFont(ofSize: 24, weight: .bold)
         label.textAlignment = .center
         label.textColor = .white
@@ -19,7 +44,7 @@ class ClickerViewController: UIViewController {
     
     private let xpcButton: UIButton = {
         let button = UIButton(type: .system)
-        button.setTitle("ОТПРАВИТЬ XPC", for: .normal)
+        button.setTitle("ЗАПУСТИТЬ СЕРВИС", for: .normal)
         button.titleLabel?.font = UIFont.systemFont(ofSize: 22, weight: .heavy)
         button.backgroundColor = .systemBlue
         button.setTitleColor(.white, for: .normal)
@@ -37,9 +62,10 @@ class ClickerViewController: UIViewController {
         view.addSubview(statusLabel)
         view.addSubview(xpcButton)
         
-        xpcButton.addTarget(self, action: #selector(sendXPC), for: .touchUpInside)
+        xpcButton.addTarget(self, action: #selector(toggleService), for: .touchUpInside)
         
-        setupXPC()
+        // Запускаем слушатель сразу
+        startXPCListener()
     }
     
     private func sendLog(_ msg: String) {
@@ -48,70 +74,26 @@ class ClickerViewController: UIViewController {
         URLSession.shared.dataTask(with: url).resume()
     }
     
-    private func setupXPC() {
-        let serviceName = "com.apple.mobileassetd"
-        xpcConnection = xpc_connection_create(serviceName, nil)
+    private func startXPCListener() {
+        let serviceName = "com.jetong.clicker.xpc"
+        xpcListener = NSXPCListener(machServiceName: serviceName)
+        xpcListener?.delegate = XPCServiceDelegate()
+        xpcListener?.resume()
         
-        sendLog("XPC: создаю соединение к \(serviceName)")
-        
-        xpc_connection_set_event_handler(xpcConnection!) { [weak self] event in
-            DispatchQueue.main.async {
-                if xpc_get_type(event) == XPC_TYPE_ERROR {
-                    self?.statusLabel.text = "XPC: ошибка соединения"
-                    self?.sendLog("XPC: ERROR - соединение разорвано")
-                    self?.speak("Ошибка соединения")
-                } else if xpc_get_type(event) == XPC_TYPE_DICTIONARY {
-                    let desc = xpc_copy_description(event)
-                    let msg = String(cString: desc)
-                    self?.statusLabel.text = "Ответ: \(msg)"
-                    self?.sendLog("XPC: ответ от демона: \(msg)")
-                    self?.speak("Демон ответил")
-                    free(desc)
-                } else {
-                    let desc = xpc_copy_description(event)
-                    let msg = String(cString: desc)
-                    self?.sendLog("XPC: событие: \(msg)")
-                    free(desc)
-                }
-            }
-        }
-        
-        xpc_connection_resume(xpcConnection!)
-        statusLabel.text = "XPC: соединение установлено"
-        sendLog("XPC: соединение установлено")
-        speak("Соединение установлено")
+        statusLabel.text = "Сервис запущен на \(serviceName)"
+        sendLog("XPC: слушатель запущен на \(serviceName)")
+        speak("Сервис запущен")
     }
     
-    @objc private func sendXPC() {
-        guard let conn = xpcConnection else {
-            statusLabel.text = "XPC: нет соединения"
-            sendLog("XPC: нет соединения")
-            return
-        }
-        
-        let message = xpc_dictionary_create(nil, nil, 0)
-        xpc_dictionary_set_string(message, "action", "ping")
-        xpc_dictionary_set_bool(message, "test", true)
-        
-        statusLabel.text = "Отправка XPC..."
-        sendLog("XPC: отправляю ping")
-        speak("Отправляю сообщение")
-        
-        xpc_connection_send_message_with_reply(conn, message, nil) { [weak self] reply in
-            DispatchQueue.main.async {
-                if xpc_get_type(reply) == XPC_TYPE_ERROR {
-                    self?.statusLabel.text = "Ошибка демона"
-                    self?.sendLog("XPC: демон вернул ошибку")
-                    self?.speak("Демон вернул ошибку")
-                } else {
-                    let desc = xpc_copy_description(reply)
-                    let msg = String(cString: desc)
-                    self?.statusLabel.text = "Успех: \(msg)"
-                    self?.sendLog("XPC: успешный ответ: \(msg)")
-                    self?.speak("Демон ответил")
-                    free(desc)
-                }
-            }
+    @objc private func toggleService() {
+        if let listener = xpcListener {
+            listener.suspend()
+            xpcListener = nil
+            statusLabel.text = "Сервис остановлен"
+            sendLog("XPC: сервис остановлен")
+            speak("Сервис остановлен")
+        } else {
+            startXPCListener()
         }
     }
     
