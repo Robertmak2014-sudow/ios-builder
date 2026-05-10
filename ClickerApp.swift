@@ -62,20 +62,16 @@ class ClickerViewController: UIViewController {
                     self?.speak("Ошибка соединения")
                 } else if xpc_get_type(event) == XPC_TYPE_DICTIONARY {
                     let desc = xpc_copy_description(event)
-                    if let desc = desc {
-                        let msg = String(cString: desc)
-                        self?.statusLabel.text = "Ответ: \(msg)"
-                        self?.sendLog("XPC: ответ от демона: \(msg)")
-                        self?.speak("Демон ответил")
-                        free(desc)
-                    }
+                    let msg = String(cString: desc)
+                    self?.statusLabel.text = "Ответ: \(msg)"
+                    self?.sendLog("XPC: ответ от демона: \(msg)")
+                    self?.speak("Демон ответил")
+                    free(desc)
                 } else {
                     let desc = xpc_copy_description(event)
-                    if let desc = desc {
-                        let msg = String(cString: desc)
-                        self?.sendLog("XPC: событие: \(msg)")
-                        free(desc)
-                    }
+                    let msg = String(cString: desc)
+                    self?.sendLog("XPC: событие: \(msg)")
+                    free(desc)
                 }
             }
         }
@@ -109,13 +105,11 @@ class ClickerViewController: UIViewController {
                     self?.speak("Демон вернул ошибку")
                 } else {
                     let desc = xpc_copy_description(reply)
-                    if let desc = desc {
-                        let msg = String(cString: desc)
-                        self?.statusLabel.text = "Успех: \(msg)"
-                        self?.sendLog("XPC: успешный ответ: \(msg)")
-                        self?.speak("Демон ответил")
-                        free(desc)
-                    }
+                    let msg = String(cString: desc)
+                    self?.statusLabel.text = "Успех: \(msg)"
+                    self?.sendLog("XPC: успешный ответ: \(msg)")
+                    self?.speak("Демон ответил")
+                    free(desc)
                 }
             }
         }
