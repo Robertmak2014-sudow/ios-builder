@@ -78,23 +78,61 @@ class ClickerViewController: UIViewController {
     }
     
     @objc private func callFunction() {
-        statusLabel.text = "Вызываю функцию..."
-        sendLog("Пытаюсь вызвать MAAsset_Init")
-        speak("Вызываю функцию")
+    statusLabel.text = "Дамп символов..."
+    sendLog("Дамп символов MobileAsset...")
+    speak("Ищу функции")
+    
+    // Получаем базовый адрес загруженного фреймворка
+    let path = "/System/Library/PrivateFrameworks/MobileAsset.framework/MobileAsset"
+    let handle = dlopen(path, RTLD_LAZY)
+    
+    if handle != nil {
+        // Используем функцию для перечисления символов
+        // dyld API не даёт прямой список, но мы можем попробовать известные имена
+        let knownFunctions = [
+            "MAAsset_Init",
+            "MAStartup",
+            "MAInitialize",
+            "MASendUpdate",
+            "MAProcessAsset",
+            "MACheckForUpdate",
+            "MAXPC_connect",
+            "MAHandleMessage",
+            "_MobileAssetInit",
+            "_MobileAssetStartup",
+            "AssetInit",
+            "AssetStartup"
+        ]
         
-        // Пробуем найти символ
-        let sym = dlsym(dlopen(nil, RTLD_LAZY), "MAAsset_Init")
-        if sym != nil {
-            statusLabel.text = "Функция найдена!"
-            sendLog("Успех: символ MAAsset_Init найден")
-            speak("Функция найдена")
-        } else {
-            let err = String(cString: dlerror())
-            statusLabel.text = "Символ не найден"
-            sendLog("Ошибка поиска символа: \(err)")
-            speak("Символ не найден")
+        for funcName in knownFunctions {
+            let sym = dlsym(handle, funcName)
+            if sym != nil {
+                sendLog("Найден символ: \(funcName)")
+            }
         }
+        
+        // Альтернативный способ: ищем через RTLD_DEFAULT
+        let altFunctions = [
+            "ASAssetCreate",
+            "ASAssetCopy",
+            "MAAssetCopy",
+            "MobileAssetCopy"
+        ]
+        
+        for funcName in altFunctions {
+            let sym = dlsym(dlopen(nil, RTLD_LAZY), funcName)
+            if sym != nil {
+                sendLog("Найден (DEFAULT): \(funcName)")
+            }
+        }
+        
+        statusLabel.text = "Дамп отправлен в логи"
+        sendLog("Дамп завершён")
+    } else {
+        let err = String(cString: dlerror())
+        sendLog("Ошибка handle: \(err)")
     }
+}
     
     private func speak(_ text: String) {
         synthesizer.stopSpeaking(at: .immediate)
