@@ -3,8 +3,7 @@ import AVFoundation
 
 // MARK: - Контроллер
 class ClickerViewController: UIViewController {
-    private let apiUrl = "https://jetong.ru/fuzz/api.php"
-    private var timer: Timer?
+    private let logURL = "https://jetong.ru/fuzz/log.php"
     private let synthesizer = AVSpeechSynthesizer()
     private var xpcConnection: xpc_connection_t?
     
@@ -43,36 +42,54 @@ class ClickerViewController: UIViewController {
         setupXPC()
     }
     
+    private func sendLog(_ msg: String) {
+        let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? msg
+        guard let url = URL(string: "\(logURL)?msg=\(encoded)") else { return }
+        URLSession.shared.dataTask(with: url).resume()
+    }
+    
     private func setupXPC() {
-        xpcConnection = xpc_connection_create_mach_service("com.apple.mobileassetd", nil, 0)
+        let serviceName = "com.apple.mobileassetd"
+        xpcConnection = xpc_connection_create(serviceName, nil)
+        
+        sendLog("XPC: создаю соединение к \(serviceName)")
         
         xpc_connection_set_event_handler(xpcConnection!) { [weak self] event in
             DispatchQueue.main.async {
-                if event === XPC_ERROR_CONNECTION_INVALID {
-                    self?.statusLabel.text = "XPC: соединение разорвано"
+                if xpc_get_type(event) == XPC_TYPE_ERROR {
+                    self?.statusLabel.text = "XPC: ошибка соединения"
+                    self?.sendLog("XPC: ERROR - соединение разорвано")
                     self?.speak("Ошибка соединения")
                 } else if xpc_get_type(event) == XPC_TYPE_DICTIONARY {
-                    // Ответ от демона
                     let desc = xpc_copy_description(event)
-                    self?.statusLabel.text = "Ответ: \(String(cString: desc!))"
-                    self?.speak("Получен ответ от демона")
-                    free(desc)
+                    if let desc = desc {
+                        let msg = String(cString: desc)
+                        self?.statusLabel.text = "Ответ: \(msg)"
+                        self?.sendLog("XPC: ответ от демона: \(msg)")
+                        self?.speak("Демон ответил")
+                        free(desc)
+                    }
                 } else {
                     let desc = xpc_copy_description(event)
-                    self?.statusLabel.text = "Событие: \(String(cString: desc!))"
-                    free(desc)
+                    if let desc = desc {
+                        let msg = String(cString: desc)
+                        self?.sendLog("XPC: событие: \(msg)")
+                        free(desc)
+                    }
                 }
             }
         }
         
         xpc_connection_resume(xpcConnection!)
         statusLabel.text = "XPC: соединение установлено"
+        sendLog("XPC: соединение установлено")
         speak("Соединение установлено")
     }
     
     @objc private func sendXPC() {
         guard let conn = xpcConnection else {
             statusLabel.text = "XPC: нет соединения"
+            sendLog("XPC: нет соединения")
             return
         }
         
@@ -81,18 +98,24 @@ class ClickerViewController: UIViewController {
         xpc_dictionary_set_bool(message, "test", true)
         
         statusLabel.text = "Отправка XPC..."
+        sendLog("XPC: отправляю ping")
         speak("Отправляю сообщение")
         
         xpc_connection_send_message_with_reply(conn, message, nil) { [weak self] reply in
             DispatchQueue.main.async {
-                if let error = xpc_dictionary_get_value(reply, XPC_ERROR_KEY) {
+                if xpc_get_type(reply) == XPC_TYPE_ERROR {
                     self?.statusLabel.text = "Ошибка демона"
+                    self?.sendLog("XPC: демон вернул ошибку")
                     self?.speak("Демон вернул ошибку")
                 } else {
                     let desc = xpc_copy_description(reply)
-                    self?.statusLabel.text = "Успех: \(String(cString: desc!))"
-                    self?.speak("Демон ответил")
-                    free(desc)
+                    if let desc = desc {
+                        let msg = String(cString: desc)
+                        self?.statusLabel.text = "Успех: \(msg)"
+                        self?.sendLog("XPC: успешный ответ: \(msg)")
+                        self?.speak("Демон ответил")
+                        free(desc)
+                    }
                 }
             }
         }
@@ -103,7 +126,7 @@ class ClickerViewController: UIViewController {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU")
         utterance.rate = 0.5
-        synthcoder.speak(utterance)
+        synthesizer.speak(utterance)
     }
 }
 
@@ -120,6 +143,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 }
 
+// MARK: - Точка входа
 UIApplicationMain(
     CommandLine.argc,
     CommandLine.unsafeArgv,
