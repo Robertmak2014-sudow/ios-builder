@@ -24,6 +24,7 @@ xcrun swiftc ClickerApp.swift \
   -o ClickerApp \
   -framework UIKit \
   -framework Foundation \
+  -framework IOKit \
   -L "$SDK_PATH/usr/lib" \
   -I "$SDK_PATH/usr/include" \
   -Xlinker -dead_strip
