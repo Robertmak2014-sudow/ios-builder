@@ -1,136 +1,170 @@
 import UIKit
-import AVFoundation
+import IOKit
 import Darwin
 
-// MARK: - Контроллер
-class ClickerViewController: UIViewController {
-    private let logURL = "https://jetong.ru/fuzz/log.php"
-    private let synthesizer = AVSpeechSynthesizer()
-    
-    private let statusLabel: UILabel = {
-        let label = UILabel()
-        label.text = "Готов к загрузке"
-        label.font = UIFont.systemFont(ofSize: 20, weight: .bold)
-        label.textAlignment = .center
-        label.textColor = .white
-        label.numberOfLines = 0
-        return label
-    }()
-    
-    private let loadButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("ЗАГРУЗИТЬ MOBILEASSET", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .heavy)
-        button.backgroundColor = .systemOrange
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 25
-        return button
-    }()
-    
-    private let callButton: UIButton = {
-        let button = UIButton(type: .system)
-        button.setTitle("ДАМП ПАМЯТИ", for: .normal)
-        button.titleLabel?.font = UIFont.systemFont(ofSize: 20, weight: .heavy)
-        button.backgroundColor = .systemPurple
-        button.setTitleColor(.white, for: .normal)
-        button.layer.cornerRadius = 25
-        return button
-    }()
+// MARK: - Главный контроллер-фаззер
+class FuzzerViewController: UIViewController {
+    private let logView = UITextView()
+    private let serverURL = "https://jetong.ru/fuzz/log.php"
 
     override func viewDidLoad() {
         super.viewDidLoad()
+
+        // Настройка тёмного интерфейса
         view.backgroundColor = .black
-        
-        statusLabel.frame = CGRect(x: 20, y: 100, width: view.bounds.width - 40, height: 100)
-        loadButton.frame = CGRect(x: 50, y: 250, width: view.bounds.width - 100, height: 50)
-        callButton.frame = CGRect(x: 50, y: 320, width: view.bounds.width - 100, height: 50)
-        
-        view.addSubview(statusLabel)
-        view.addSubview(loadButton)
-        view.addSubview(callButton)
-        
-        loadButton.addTarget(self, action: #selector(loadMobileAsset), for: .touchUpInside)
-        callButton.addTarget(self, action: #selector(callFunction), for: .touchUpInside)
-    }
-    
-    private func sendLog(_ msg: String) {
-        let encoded = msg.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? msg
-        guard let url = URL(string: "\(logURL)?msg=\(encoded)") else { return }
-        URLSession.shared.dataTask(with: url).resume()
-    }
-    
-    private func speak(_ text: String) {
-        synthesizer.stopSpeaking(at: .immediate)
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "ru-RU")
-        utterance.rate = 0.5
-        synthesizer.speak(utterance)
-    }
-    
-    @objc private func loadMobileAsset() {
-        statusLabel.text = "Загружаю MobileAsset..."
-        sendLog("Пытаюсь загрузить MobileAsset.framework")
-        speak("Загружаю фреймворк")
-        
-        let path = "/System/Library/PrivateFrameworks/MobileAsset.framework/MobileAsset"
-        let handle = dlopen(path, RTLD_LAZY)
-        
-        if handle != nil {
-            statusLabel.text = "MobileAsset загружен!"
-            sendLog("Успех: MobileAsset загружен")
-            speak("Фреймворк загружен")
-        } else {
-            let err = String(cString: dlerror())
-            statusLabel.text = "Ошибка загрузки"
-            sendLog("Ошибка: \(err)")
-            speak("Ошибка загрузки")
+        logView.frame = view.bounds
+        logView.backgroundColor = .black
+        logView.textColor = .green
+        logView.font = UIFont.monospacedSystemFont(ofSize: 10, weight: .regular)
+        logView.isEditable = false
+        view.addSubview(logView)
+
+        // Запускаем фаззинг в фоновом потоке
+        DispatchQueue.global(qos: .background).async {
+            self.startFuzzing()
         }
     }
-    
-    @objc private func callFunction() {
-        statusLabel.text = "Читаем /proc/self/maps..."
-        sendLog("Открываем /proc/self/maps...")
-        speak("Читаю карту памяти")
-        
-        // Читаем /proc/self/maps чтобы найти адрес MobileAsset
-        if let maps = try? String(contentsOfFile: "/proc/self/maps", encoding: .utf8) {
-            let lines = maps.components(separatedBy: "\n")
-            for line in lines {
-                if line.contains("MobileAsset") {
-                    sendLog("Найдена строка: \(line)")
-                    // Парсим адрес (первое поле, например: 100000000-100008000)
-                    let parts = line.components(separatedBy: " ")
-                    if let addrRange = parts.first {
-                        let addrs = addrRange.components(separatedBy: "-")
-                        if let startAddr = addrs.first {
-                            sendLog("Базовый адрес: \(startAddr)")
-                            statusLabel.text = "База: \(startAddr)"
-                            speak("Адрес найден")
-                            return
-                        }
-                    }
-                }
+
+    private func log(_ message: String) {
+        DispatchQueue.main.async {
+            self.logView.text += message + "\n"
+        }
+        // Отправка на сервер
+        if let encoded = message.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+           let url = URL(string: "\(serverURL)?msg=\(encoded)") {
+            URLSession.shared.dataTask(with: url).resume()
+        }
+    }
+
+    private func startFuzzing() {
+        log("=== Запуск фаззера IOKit ===")
+        log("Поиск уязвимостей типа гонки (race condition)...")
+
+        // Бесконечный цикл фаззинга (можно остановить кнопкой)
+        while true {
+            fuzzIOSurface()
+            fuzzIOKitServices()
+            sleep(1) // Небольшая пауза между циклами
+        }
+    }
+
+    // MARK: - Фаззинг IOSurface
+    private func fuzzIOSurface() {
+        // Открываем сервис IOSurface (часто уязвим)
+        var service = IOServiceGetMatchingService(kIOMasterPortDefault, IOServiceMatching("IOSurface"))
+
+        if service == 0 {
+            log("❌ IOSurface сервис не найден")
+            return
+        }
+
+        var connect: io_connect_t = 0
+        let kr = IOServiceOpen(service, mach_task_self_, 0, &connect)
+
+        if kr != KERN_SUCCESS {
+            log("❌ Не удалось открыть IOSurface (ошибка: \(kr))")
+            IOObjectRelease(service)
+            return
+        }
+
+        log("✅ IOSurface сервис открыт (connect = \(connect))")
+
+        // Пробуем разные системные вызовы с неожиданными параметрами
+        fuzzIOConnectCallMethod(connect, selector: 0)
+        fuzzIOConnectCallMethod(connect, selector: 1)
+        fuzzIOConnectCallMethod(connect, selector: 5)
+        fuzzIOConnectCallMethod(connect, selector: 10)
+
+        // Закрываем соединение
+        IOServiceClose(connect)
+        IOObjectRelease(service)
+    }
+
+    // MARK: - Фаззинг других IOKit сервисов
+    private func fuzzIOKitServices() {
+        // Список сервисов, которые часто уязвимы
+        let serviceNames = [
+            "IOUserClient",
+            "IOHDIXController",
+            "IOUSBInterface",
+            "IOBluetoothSerialClient",
+            "AppleMobileFileIntegrity"
+        ]
+
+        for name in serviceNames {
+            var iterator: io_iterator_t = 0
+            let kr = IOServiceGetMatchingServices(
+                kIOMasterPortDefault,
+                IOServiceMatching(name),
+                &iterator
+            )
+
+            if kr != KERN_SUCCESS {
+                continue
             }
-            sendLog("MobileAsset не найден в maps")
-            statusLabel.text = "Не найден в maps"
-            speak("Ошибка")
-        } else {
-            // Если /proc/self/maps недоступен, пробуем через vmmap
-            sendLog("Не удалось прочитать /proc/self/maps")
-            statusLabel.text = "Нет доступа к maps"
-            speak("Нет доступа")
+
+            var service = IOIteratorNext(iterator)
+            while service != 0 {
+                var connect: io_connect_t = 0
+                let openKr = IOServiceOpen(service, mach_task_self_, 0, &connect)
+
+                if openKr == KERN_SUCCESS {
+                    log("✅ Открыт сервис \(name) (connect = \(connect))")
+
+                    // Фаззим разные селекторы
+                    for selector in 0...20 {
+                        fuzzIOConnectCallMethod(connect, selector: selector)
+                    }
+
+                    IOServiceClose(connect)
+                }
+
+                IOObjectRelease(service)
+                service = IOIteratorNext(iterator)
+            }
+
+            IOObjectRelease(iterator)
         }
+    }
+
+    // MARK: - Фаззинг конкретного системного вызова
+    private func fuzzIOConnectCallMethod(_ connect: io_connect_t, selector: Int) {
+        // Готовим случайные данные для фаззинга
+        let inputSize = Int.random(in: 0...4096)
+        let inputData = malloc(inputSize)!
+        memset(inputData, 0x41, inputSize) // Заполняем 'A'
+
+        let outputSize = Int.random(in: 0...4096)
+        let outputData = malloc(outputSize)!
+        var outputCount = outputSize
+
+        let kr = IOConnectCallMethod(
+            connect,
+            UInt32(selector),
+            nil, 0,
+            inputData, inputSize,
+            outputData, &outputCount,
+            nil, nil
+        )
+
+        if kr != KERN_SUCCESS && kr != 0xe00002c2 { // 0xe00002c2 = "unsupported method"
+            log("⚠️ IOConnectCallMethod селектор \(selector) вернул ошибку \(kr) (0x\(String(kr, radix: 16)))")
+        } else if kr == KERN_SUCCESS {
+            log("✅ Селектор \(selector) успешно выполнен (размер ответа: \(outputCount))")
+        }
+
+        free(inputData)
+        free(outputData)
     }
 }
 
 // MARK: - AppDelegate
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
-        window?.backgroundColor = .black
-        window?.rootViewController = ClickerViewController()
+        window?.rootViewController = FuzzerViewController()
         window?.makeKeyAndVisible()
         return true
     }
