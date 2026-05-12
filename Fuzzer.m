@@ -5,9 +5,8 @@
 void startIOKitFuzzing(void) {
     printf("=== Запуск ObjC фаззера IOKit ===\n");
     
-    // Прямой доступ к IOKit без проблем с типами
-    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, 
-                                                        IOServiceMatching("IOSurface"));
+    // В iOS kIOMasterPortDefault недоступен, используем 0 (правильное значение для iOS)
+    io_service_t service = IOServiceGetMatchingService(0, IOServiceMatching("IOSurface"));
     
     if (service == IO_OBJECT_NULL) {
         printf("❌ IOSurface сервис не найден\n");
@@ -27,25 +26,26 @@ void startIOKitFuzzing(void) {
     
     printf("✅ Соединение установлено\n");
     
-    // Фаззим селекторы
+    // Фаззим селекторы с корректными типами для iOS
     for (int i = 0; i < 50; i++) {
-        char input[256] = {0};
-        char output[256] = {0};
-        size_t outputSize = sizeof(output);
+        uint64_t input[32] = {0};  
+        uint64_t output[32] = {0}; 
+        uint32_t outputCount = 32; 
         
         kr = IOConnectCallMethod(connect, i,
                                  NULL, 0,
                                  input, sizeof(input),
-                                 output, &outputSize,
+                                 output, &outputCount,
                                  NULL, NULL);
         
-        if (kr != KERN_SUCCESS) {
+        if (kr != KERN_SUCCESS && kr != kIOReturnUnsupported) {
             printf("⚠️ Селектор %d вернул 0x%x\n", i, kr);
-        } else {
-            printf("✅ Селектор %d выполнен\n", i);
+        } else if (kr == KERN_SUCCESS) {
+            printf("✅ Селектор %d выполнен успешно\n", i);
         }
     }
     
     IOServiceClose(connect);
     IOObjectRelease(service);
+    printf("✅ Фаззинг завершён\n");
 }
