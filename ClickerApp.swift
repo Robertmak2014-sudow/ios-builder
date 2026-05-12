@@ -1,5 +1,5 @@
 import UIKit
-import IOKit
+
 import Darwin
 
 // MARK: - Главный контроллер-фаззер
