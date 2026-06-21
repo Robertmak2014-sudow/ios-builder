@@ -41,7 +41,9 @@ struct JailbreakShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: ReadRootIntent(),
-            phrases: ["Прочитать корень системы"]
+            phrases: ["Прочитать корень системы"],
+            shortTitle: "Чтение корня",
+            systemImageName: "folder"
         )
     }
 }
@@ -62,7 +64,7 @@ struct ContentView: View {
             Button("Прочитать корень") {
                 Task {
                     let result = await ReadRootIntent().perform()
-                    status = result.value ?? "Готово"
+                    status = result.value as? String ?? "Готово (без текста)"
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -73,6 +75,7 @@ struct ContentView: View {
     }
 }
 
+// ========== APP ENTRY ==========
 @main
 struct ClickerApp: App {
     var body: some Scene {
