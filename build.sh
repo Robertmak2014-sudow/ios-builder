@@ -17,15 +17,8 @@ rm -f ClickerApp.ipa
 mkdir -p Payload/ClickerApp.app
 
 echo "🔨 Compiling Swift code..."
-# Компилируем ObjC в объектный файл
-xcrun clang -c Fuzzer.m \
-  -o Fuzzer.o \
-  -framework Foundation \
-  -framework IOKit \
-  -arch arm64 \
-  -isysroot "$SDK_PATH"
 # Compile Swift code
-xcrun swiftc ClickerApp.swift Fuzzer.o \
+xcrun swiftc ClickerApp.swift \
   -sdk "$SDK_PATH" \
   -target arm64-apple-ios17.0 \
   -o ClickerApp \
