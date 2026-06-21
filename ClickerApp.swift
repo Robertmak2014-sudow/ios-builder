@@ -1,7 +1,5 @@
 import SwiftUI
 import AppIntents
-import UIKit
-import UserNotifications
 
 // ========== INTENT ==========
 struct ReadRootIntent: AppIntent {
@@ -17,21 +15,11 @@ struct ReadRootIntent: AppIntent {
             UIPasteboard.general.string = output
             
             // Файл
-            let logPath = "/var/mobile/root_list.txt"
-            try output.write(toFile: logPath, atomically: true, encoding: .utf8)
-            
-            // Уведомление
-            let notification = UNMutableNotificationContent()
-            notification.title = "Готово"
-            notification.body = "Список скопирован в буфер обмена"
-            let request = UNNotificationRequest(identifier: "rootRead", content: notification, trigger: nil)
-            try? await UNUserNotificationCenter.current().add(request)
+            try output.write(toFile: "/var/mobile/root_list.txt", atomically: true, encoding: .utf8)
             
             return .result(value: "Скопировано в буфер обмена")
         } catch {
-            let errorMsg = "Ошибка: \(error.localizedDescription)"
-            UIPasteboard.general.string = errorMsg
-            return .result(value: errorMsg)
+            return .result(value: "Ошибка: \(error.localizedDescription)")
         }
     }
 }
@@ -41,9 +29,7 @@ struct JailbreakShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: ReadRootIntent(),
-            phrases: ["Прочитать корень системы"],
-            shortTitle: "Чтение корня",
-            systemImageName: "folder"
+            phrases: ["Прочитать корень системы"]
         )
     }
 }
@@ -63,8 +49,12 @@ struct ContentView: View {
             
             Button("Прочитать корень") {
                 Task {
-                    let result = await ReadRootIntent().perform()
-                    status = result.value as? String ?? "Готово (без текста)"
+                    do {
+                        let result = try await ReadRootIntent().perform()
+                        status = result.value as? String ?? "Готово"
+                    } catch {
+                        status = "Ошибка: \(error.localizedDescription)"
+                    }
                 }
             }
             .buttonStyle(.borderedProminent)
